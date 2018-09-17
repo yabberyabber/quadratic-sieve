@@ -9,9 +9,13 @@ import (
 )
 
 const (
-    smoothnessCap = 63
-    // toFactor = 90283
-    toFactor = 502560280658509
+    smoothnessCap = 30
+    // toFactor = 659 * 137 // 90283
+    // toFactor = 1249 * 1451
+    toFactor = 8009 * 15373
+    // toFactor = 102199 * 15373
+    // toFactor = 502560280658509
+
 )
 
 var done atomic.Value
@@ -27,30 +31,30 @@ type factorPair struct {
 }
 
 func main() {
+    defer timeTrack(time.Now(), "Factoring")
     // Initialize the naieve divisor with the first SMOOTHNESS primes
     factoring.GetNthPrime(smoothnessCap)
 
     done.Store(false)
 
-    /*
-    for i := uint(1); i < smoothnessCap; i++ {
-        fmt.Printf("prime[%d] = %d\n", i, factoring.GetNthPrime(i))
-    }
-    */
-
-    smoothDivisorsChan := make(chan divisionTrial, 10)
+    smoothDivisorsChan := make(chan divisionTrial, 32)
     go GetSmoothDivisors(smoothDivisorsChan)
 
-    filteredSmoothDivisorsChan := make(chan divisionTrial, 3)
+    filteredSmoothDivisorsChan := make(chan divisionTrial, 32)
     go FilterSmoothDivisors(smoothDivisorsChan, filteredSmoothDivisorsChan)
 
-    squareChan := make(chan []divisionTrial, 1)
-    go SquareSubsetFilter(filteredSmoothDivisorsChan, squareChan)
+    accumulatedDivisorsChan := make(chan []divisionTrial, 32)
+    go SmoothDivisorsAccumulator(filteredSmoothDivisorsChan, accumulatedDivisorsChan)
 
-    resultChan := make(chan factorPair, 1)
+    squareChan := make(chan []divisionTrial, 4)
+    for i := 0; i < 4; i++ {
+        go ComputeSquareSubset(accumulatedDivisorsChan, squareChan)
+    }
+
+    resultChan := make(chan factorPair, 4)
     go DetermineFactor(squareChan, resultChan)
 
-    filteredResultChan := make(chan factorPair, 1)
+    filteredResultChan := make(chan factorPair, 4)
     go FilterTrivialResults(resultChan, filteredResultChan)
 
     result := <-filteredResultChan
@@ -79,8 +83,8 @@ func GetSmoothDivisors(smoothResults chan divisionTrial) {
                 ack:     result,
             }
 
-            fmt.Printf("Found new smooth factor (took %v)\n",
-                       time.Since(searchStartTime))
+            fmt.Printf("Found new smooth factor (took %v) (queue %d)\n",
+                       time.Since(searchStartTime), len(smoothResults))
             smoothResults <-newEntry
             searchStartTime = time.Now()
         }
@@ -89,8 +93,7 @@ func GetSmoothDivisors(smoothResults chan divisionTrial) {
     }
 }
 
-// fund a subset of |smooth| that results in a square.  for now use brute force
-func SquareSubsetFilter(smooth chan divisionTrial, squares chan []divisionTrial) {
+func SmoothDivisorsAccumulator(smooth chan divisionTrial, sets chan []divisionTrial) {
     entries := []divisionTrial{}
 
     for {
@@ -100,7 +103,20 @@ func SquareSubsetFilter(smooth chan divisionTrial, squares chan []divisionTrial)
 
         newEntry := <-smooth
         entries = append(entries, newEntry)
-        // fmt.Printf("Just read from chan %+v\n", newEntry)
+
+        sets <-entries
+    }
+}
+
+// Do the actual computation finding a square subset of |smooth|
+func ComputeSquareSubset(entriesChan chan []divisionTrial,
+        squares chan []divisionTrial) {
+    for {
+        if done.Load().(bool) {
+            return
+        }
+
+        entries := <-entriesChan
 
         startTime := time.Now()
 
@@ -121,9 +137,8 @@ func SquareSubsetFilter(smooth chan divisionTrial, squares chan []divisionTrial)
             }
         }
 
-        fmt.Printf("No square subset given %d smooth divisions (took %v)\n",
-                   len(entries), time.Since(startTime))
-
+        fmt.Printf("No square subset given %d smooth divisions (took %v) (queue %d)\n",
+                   len(entries), time.Since(startTime), len(entriesChan))
     }
 }
 
@@ -148,7 +163,6 @@ func DetermineFactor(smoothChan chan []divisionTrial, outChan chan factorPair) {
         outProductSquare := uint(1)
 
         for _, entry := range(smooth) {
-            fmt.Printf("%d\n", entry.divisor)
             inProduct *= entry.divisor
             outProductSquare *= entry.ack
         }
@@ -186,10 +200,10 @@ func FilterSmoothDivisors(smoothDivisorsChan,
 
 func FilterTrivialResults(inChan chan factorPair, outChan chan factorPair) {
     for result := range inChan {
-        if result.a != 1 {
+        if result.a != 1 && result.b != 1 {
             outChan <-result
         } else {
-            fmt.Printf("\n***\nTrivial result fitered out\n***\n")
+            // fmt.Printf("\n***\nTrivial result fitered out\n***\n")
         }
     }
 }
