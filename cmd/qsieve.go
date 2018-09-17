@@ -6,14 +6,15 @@ import (
     "fmt"
     "time"
     "sync/atomic"
+    "runtime"
 )
 
 const (
-    smoothnessCap = 30
+    smoothnessCap = 42
     // toFactor = 659 * 137 // 90283
     // toFactor = 1249 * 1451
-    toFactor = 8009 * 15373
-    // toFactor = 102199 * 15373
+    // toFactor = 8009 * 15373
+    toFactor = 102199 * 15373
     // toFactor = 502560280658509
 
 )
@@ -31,6 +32,8 @@ type factorPair struct {
 }
 
 func main() {
+    runtime.GOMAXPROCS(16)
+
     defer timeTrack(time.Now(), "Factoring")
     // Initialize the naieve divisor with the first SMOOTHNESS primes
     factoring.GetNthPrime(smoothnessCap)
@@ -46,7 +49,7 @@ func main() {
     accumulatedDivisorsChan := make(chan []divisionTrial, 32)
     go SmoothDivisorsAccumulator(filteredSmoothDivisorsChan, accumulatedDivisorsChan)
 
-    squareChan := make(chan []divisionTrial, 4)
+    squareChan := make(chan []divisionTrial, 16)
     for i := 0; i < 4; i++ {
         go ComputeSquareSubset(accumulatedDivisorsChan, squareChan)
     }
@@ -57,18 +60,33 @@ func main() {
     filteredResultChan := make(chan factorPair, 4)
     go FilterTrivialResults(resultChan, filteredResultChan)
 
-    result := <-filteredResultChan
-    fmt.Printf("%d * %d = %d\n", result.a, result.b,
-               result.a * result.b)
+    tick := make(chan bool)
+    go func() {
+        for {
+            time.Sleep(10 * time.Second)
+            tick <- true
+        }
+    }()
+
+    for {
+        select {
+        case <-tick:
+            fmt.Printf("Queue of sets to find squares in: %d\n", len(accumulatedDivisorsChan))
+        case result := <-filteredResultChan:
+            fmt.Printf("%d * %d = %d\n", result.a, result.b,
+                       result.a * result.b)
+            break
+        }
+    }
 
     done.Store(true)
 }
 
 func GetSmoothDivisors(smoothResults chan divisionTrial) {
     candidate := uint(math.Sqrt(float64(toFactor))) + 1
-    searchStartTime := time.Now()
+    // searchStartTime := time.Now()
 
-    for {
+    for i := 0; ; i++{
         if done.Load().(bool) {
             return
         }
@@ -83,10 +101,12 @@ func GetSmoothDivisors(smoothResults chan divisionTrial) {
                 ack:     result,
             }
 
+            /*
             fmt.Printf("Found new smooth factor (took %v) (queue %d)\n",
                        time.Since(searchStartTime), len(smoothResults))
+                       */
             smoothResults <-newEntry
-            searchStartTime = time.Now()
+            // searchStartTime = time.Now()
         }
 
         candidate += 1
@@ -105,6 +125,10 @@ func SmoothDivisorsAccumulator(smooth chan divisionTrial, sets chan []divisionTr
         entries = append(entries, newEntry)
 
         sets <-entries
+        /*
+        fmt.Printf("Accumulated divisors (queue %d)\n",
+                   len(sets))
+                   */
     }
 }
 
@@ -190,6 +214,10 @@ func FilterSmoothDivisors(smoothDivisorsChan,
         if !seen[key] {
             filteredSmoothDivisorsChan <-trial
             seen[key] = true
+            /*
+            fmt.Printf("Filtered smooth factor (queue %d)\n",
+                       len(filteredSmoothDivisorsChan))
+                       */
         } else {
             filteredCount++
             fmt.Printf("\n***\nRedundant division trial fitered out (%d of %d)\n***\n",
