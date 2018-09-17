@@ -7,11 +7,11 @@ type PrimeVector struct {
     factors int64
 }
 
-func (p *PrimeVector) getFactor(n uint) bool {
+func (p *PrimeVector) getFactor(n uint64) bool {
     return (p.factors & (1 << (n - 1))) != 0
 }
 
-func (p *PrimeVector) addFactor(n uint) {
+func (p *PrimeVector) addFactor(n uint64) {
     p.factors |= 1 << (n - 1)
 }
 
@@ -33,10 +33,10 @@ func (p *PrimeVector) Hash() int64 {
     return p.factors
 }
 
-func FactorSmoothNumber(n uint, smoothnessCap uint) (PrimeVector, error) {
+func FactorSmoothNumber(n uint64, smoothnessCap uint64) (PrimeVector, error) {
     result := NewPrimeVector()
 
-    for i := uint(1); i < smoothnessCap && n > 0; i++ {
+    for i := uint64(1); i < smoothnessCap && n > 0; i++ {
         nthPrime := GetNthPrime(i)
         for n % nthPrime == 0 {
             n = n / nthPrime

@@ -28,7 +28,7 @@ func TestPrimeVectorBitwiseArithmetic(t *testing.T) {
 
 func TestRoughFactor(t *testing.T) {
     tt := []struct {
-        input uint
+        input uint64
         smooth bool
     }{
         { 6, true, },
@@ -47,7 +47,7 @@ func TestRoughFactor(t *testing.T) {
 
 func TestSmoothFactor(t *testing.T) {
     tt := []struct {
-        input uint
+        input uint64
         expected int64
     }{
         {

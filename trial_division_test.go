@@ -4,7 +4,7 @@ import "testing"
 
 func TestIsPrime(t *testing.T) {
     tt := []struct{
-        num uint
+        num uint64
         primeness bool
     }{
         {

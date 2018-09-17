@@ -22,13 +22,13 @@ const (
 var done atomic.Value
 
 type divisionTrial struct {
-    divisor uint
-    ack     uint
+    divisor uint64
+    ack     uint64
     vect factoring.PrimeVector
 }
 
 type factorPair struct {
-    a, b uint
+    a, b uint64
 }
 
 func main() {
@@ -83,7 +83,7 @@ func main() {
 }
 
 func GetSmoothDivisors(smoothResults chan divisionTrial) {
-    candidate := uint(math.Sqrt(float64(toFactor))) + 1
+    candidate := uint64(math.Sqrt(float64(toFactor))) + 1
     // searchStartTime := time.Now()
 
     for i := 0; ; i++{
@@ -183,15 +183,15 @@ func DetermineFactor(smoothChan chan []divisionTrial, outChan chan factorPair) {
     for {
         smooth := <-smoothChan
 
-        inProduct := uint(1)
-        outProductSquare := uint(1)
+        inProduct := uint64(1)
+        outProductSquare := uint64(1)
 
         for _, entry := range(smooth) {
             inProduct *= entry.divisor
             outProductSquare *= entry.ack
         }
 
-        outProduct := uint(math.Sqrt(float64(outProductSquare)))
+        outProduct := uint64(math.Sqrt(float64(outProductSquare)))
 
          a, b := inProduct - outProduct, inProduct + outProduct
          a = GCD(toFactor, a)
@@ -241,7 +241,7 @@ func timeTrack(start time.Time, name string) {
     fmt.Printf("%s took %s\n", name, elapsed)
 }
 
-func GCD(a, b uint) uint {
+func GCD(a, b uint64) uint64 {
     for b != 0 {
         a, b = b, a%b
     }

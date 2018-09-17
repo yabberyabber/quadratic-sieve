@@ -3,14 +3,14 @@ package factoring
 import "math"
 
 // list of the first couple prime numbers
-var factors = []uint{
+var factors = []uint64{
     2, 3, 5, 7,
 }
 
 // Get the |n|th prime number using the global cache as much as possible
-func GetNthPrime(n uint) uint {
-    for uint(len(factors)) < n {
-        next_prime_candidate := uint(factors[len(factors) - 1])
+func GetNthPrime(n uint64) uint64 {
+    for uint64(len(factors)) < n {
+        next_prime_candidate := uint64(factors[len(factors) - 1])
 
         for {
             next_prime_candidate += 2
@@ -26,13 +26,13 @@ func GetNthPrime(n uint) uint {
 
 // Check if the given number is prime using the global cache as much as
 // possible
-func isPrime(n uint) bool {
+func isPrime(n uint64) bool {
     if n <= 2 {
         return true
     }
 
-    i := uint(1)
-    largest_possible_factor := uint(math.Sqrt(float64(n))) + 1
+    i := uint64(1)
+    largest_possible_factor := uint64(math.Sqrt(float64(n))) + 1
     for {
         factor := GetNthPrime(i)
         if factor > largest_possible_factor {
