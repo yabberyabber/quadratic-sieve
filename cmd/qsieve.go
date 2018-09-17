@@ -13,8 +13,8 @@ const (
     smoothnessCap = 42
     // toFactor = 659 * 137 // 90283
     // toFactor = 1249 * 1451
-    // toFactor = 8009 * 15373
-    toFactor = 102199 * 15373
+    toFactor = 8009 * 15373
+    // toFactor = 102199 * 15373
     // toFactor = 502560280658509
 
 )
@@ -68,6 +68,7 @@ func main() {
         }
     }()
 
+    OuterLoop:
     for {
         select {
         case <-tick:
@@ -75,7 +76,7 @@ func main() {
         case result := <-filteredResultChan:
             fmt.Printf("%d * %d = %d\n", result.a, result.b,
                        result.a * result.b)
-            break
+            break OuterLoop
         }
     }
 
